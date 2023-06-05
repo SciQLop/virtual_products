@@ -1,6 +1,7 @@
 from datetime import datetime
 import speasy as spz
 import numpy as np
+import scipy
 
 from SciQLop.backend.pipelines_model.easy_provider import EasyVector, EasyScalar
 
@@ -18,9 +19,14 @@ def mms1_beta_srvy(start: datetime, stop: datetime) -> (np.ndarray, np.ndarray):
     )
     bt = b["Bt"].values
     mu_0 = 1.256637062e-6  # H/m
-    Ptot = (P.values[0, 0] + P.values[1, 1] + P.values[2, 2]) / 3.0
-    beta = Ptot * 1e-9 * 2 * mu_0 / (bt * 1e-9) ** 2
-    return b["Bt"].axes[0], beta
+    Ptot = (P.values[:, 0, 0] + P.values[:, 1, 1] + P.values[:, 2, 2]) / 3.0
+    tb = b["Bt"].time.astype(np.timedelta64) / np.timedelta64(1, "s")
+    tp = P.time.astype(np.timedelta64) / np.timedelta64(1, "s")
+    btfunc = scipy.interpolate.interp1d(tb, bt[:, 0])
+    btfinal = btfunc(tp)
+
+    beta = Ptot * 1e-9 * 2 * mu_0 / (btfinal * 1e-9) ** 2
+    return tp, beta
 
 
 beta_provider = EasyScalar(
